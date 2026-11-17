@@ -26,7 +26,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:
 h1{font-family:var(--display);font-weight:600;font-size:clamp(28px,6vw,40px);line-height:1;letter-spacing:.02em;text-transform:uppercase;margin:0;text-wrap:balance}
 .top p{margin:6px 0 0;color:var(--muted);max-width:64ch}
 main{max-width:1240px;margin:0 auto;padding:0 16px 40px;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
-.stage{position:sticky;top:0;z-index:5;height:clamp(250px,44vh,400px);border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#dde6ea;box-shadow:0 6px 14px -10px rgba(20,36,46,.5)}
+.stage{position:relative;height:clamp(250px,44vh,400px);border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#dde6ea;box-shadow:0 6px 14px -10px rgba(20,36,46,.5)}
 #c3d{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
 #labels{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .lab{position:absolute;left:0;top:0;white-space:nowrap;font:500 11px/1 var(--body);color:var(--ink);background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:3px;padding:3px 5px;will-change:transform}
@@ -81,7 +81,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
 @media (min-width:620px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:960px){
   main{grid-template-columns:minmax(0,1.45fr) minmax(320px,1fr);align-items:start}
-  .stage{grid-column:1;top:12px;height:clamp(380px,60vh,620px)}
+  .stage{grid-column:1;height:clamp(380px,60vh,620px)}
   .side{grid-column:2;grid-row:1 / span 3}
   .readouts,.notes{grid-column:1}
 }
@@ -651,9 +651,15 @@ function onPhase(){
   if(ph==='impact'){ addSplat(launchers[active], s, 0.3); setStatus('Impact: landed ' + fx(s.R,1) + ' m away.'); }
   uiPlay();
 }
+function showStage(){
+  var r = stage.getBoundingClientRect();
+  if(r.top < 0 || r.bottom > window.innerHeight){
+    try { stage.scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth', block: 'start'}); } catch(e){ stage.scrollIntoView(); }
+  }
+}
 function launch(){
   if(!ideal.launches){ shotNote(null); return; }
-  if(!play.shot || play.done){ newShot(); play.phase = 'load'; play.u = 0; play.paused = false; onPhase(); }
+  if(!play.shot || play.done){ newShot(); play.phase = 'load'; play.u = 0; play.paused = false; onPhase(); showStage(); }
   else { play.paused = !play.paused; uiPlay(); }
 }
 function jump(ph){
@@ -892,7 +898,7 @@ function fire(){
   if(cmp.running) return;
   cmp.plan = {hand:[], pin:[]};
   for(var i=0;i<cmp.n;i++){ cmp.plan.hand.push(computeShot(P, sampleErr('hand'))); cmp.plan.pin.push(computeShot(P, sampleErr('pin'))); }
-  cmp.t = 0; cmp.running = true; viewField(); setStatus('Firing ' + cmp.n + ' shots from each launcher at real speed.');
+  cmp.t = 0; cmp.running = true; showStage(); viewField(); setStatus('Firing ' + cmp.n + ' shots from each launcher at real speed.');
 }
 
 /* ---------- controls ---------- */
