@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Angle-Pin Launcher Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: a sticky 3D stage; controls beside it on wide screens and under it on phones; readout cards below. */
+  --paper:#eef2f4; --panel:#ffffff; --ink:#14242e; --muted:#55666f; --line:#cbd5db;
+  --hand:#c2410c; --pin:#0f6e8c;
+  --el:#7a5ea8; --ke:#e4572e; --gpe:#2a9d8f;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+.top{max-width:1240px;margin:0 auto;padding:18px 16px 10px}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(28px,6vw,40px);line-height:1;letter-spacing:.02em;text-transform:uppercase;margin:0;text-wrap:balance}
+.top p{margin:6px 0 0;color:var(--muted);max-width:64ch}
+main{max-width:1240px;margin:0 auto;padding:0 16px 40px;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+.stage{position:sticky;top:0;z-index:5;height:clamp(250px,44vh,400px);border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#dde6ea;box-shadow:0 6px 14px -10px rgba(20,36,46,.5)}
+#c3d{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#labels{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.lab{position:absolute;left:0;top:0;white-space:nowrap;font:500 11px/1 var(--body);color:var(--ink);background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:3px;padding:3px 5px;will-change:transform}
+.lab.hole{background:none;border:0;padding:0;font:500 10px/1 var(--mono);color:var(--ink)}
+.lab.dist{background:none;border:0;font:500 11px/1 var(--mono);color:var(--muted)}
+.lab.force{color:#fff;border:0;font-family:var(--mono)}
+.lab.mark{background:var(--ink);color:#fff;border:0}
+.views{position:absolute;left:8px;top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.phases{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#status{font:500 12px/1.2 var(--body);background:rgba(255,255,255,.9);border-radius:3px;padding:5px 7px;margin-left:auto}
+button{font:500 13px/1 var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--ink);border-radius:4px;padding:8px 10px;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--pin);outline-offset:2px}
+button[aria-pressed="true"],button.on{background:var(--ink);color:#fff}
+button.small{padding:6px 8px;font-size:12px}
+button.primary{background:var(--ke);border-color:var(--ke);color:#fff;font-weight:600;padding:11px 16px;font-size:15px}
+.chip{border-radius:20px;padding:6px 10px;font-size:12px}
+.side,.readouts,.notes{display:grid;gap:14px;align-content:start;grid-template-columns:minmax(0,1fr);min-width:0}
+.card{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px}
+h2{font-family:var(--display);font-weight:600;font-size:21px;letter-spacing:.03em;text-transform:uppercase;margin:0 0 8px;line-height:1.1}
+h3{font:600 13px/1.2 var(--body);margin:14px 0 6px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tabs button{padding:11px 8px;font-size:14px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1 1 auto}
+.row{display:grid;gap:4px;margin-top:12px}
+.row label{display:flex;justify-content:space-between;gap:10px;font-weight:500;font-size:13px}
+.row output{font-family:var(--mono);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink);margin:0;height:28px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.note{color:var(--muted);font-size:13px;margin:8px 0 0}
+.warn{color:#a3260d;font-weight:500}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.kv b{font:500 14px/1.3 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.eq{font:400 12.5px/1.5 var(--mono);color:var(--muted);margin:8px 0 0;overflow-x:auto;white-space:nowrap}
+canvas.plot{display:block;width:100%;height:190px;margin-top:10px}
+canvas.scatter{display:block;width:100%;height:240px;margin-top:10px}
+.ebar{display:flex;height:24px;border-radius:3px;overflow:hidden;background:#e4eaed;margin-top:10px}
+.ebar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend b{font:500 13px var(--mono);font-variant-numeric:tabular-nums}
+.sw{width:11px;height:11px;border-radius:2px;display:inline-block}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+th,td{text-align:right;padding:6px 4px;border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left;font-weight:400}
+td{font-family:var(--mono)}
+td:first-child{font-family:var(--body)}
+th.h{color:var(--hand)} th.p{color:var(--pin)}
+ol.map{margin:0;padding-left:20px;display:grid;gap:6px}
+ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
+.cards{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:620px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:960px){
+  main{grid-template-columns:minmax(0,1.45fr) minmax(320px,1fr);align-items:start}
+  .stage{grid-column:1;top:12px;height:clamp(380px,60vh,620px)}
+  .side{grid-column:2;grid-row:1 / span 3}
+  .readouts,.notes{grid-column:1}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Angle-Pin Launcher Lab</h1>
+  <p>A water balloon slingshot in two versions: the original held by hand, and the modified one with a base, an angle pin and a meter stick. Air resistance is ignored.</p>
+</header>
+
+<main>
+  <section class="stage" id="stage" aria-label="3D view of the launcher">
+    <canvas id="c3d"></canvas>
+    <div id="labels"></div>
+    <div class="views">
+      <button class="small" id="v-launcher" type="button">Launcher view</button>
+      <button class="small" id="v-field" type="button">Field view</button>
+      <button class="small on" id="v-labels" type="button" aria-pressed="true">Labels</button>
+    </div>
+    <div class="phases" id="phases">
+      <button class="chip" type="button" data-ph="load">1 Load</button>
+      <button class="chip" type="button" data-ph="release">2 Release</button>
+      <button class="chip" type="button" data-ph="flight">3 Flight</button>
+      <button class="chip" type="button" data-ph="impact">4 Impact</button>
+      <span id="status">Ready. Drag to rotate, pinch or scroll to zoom.</span>
+    </div>
+  </section>
+
+  <div class="side">
+    <div class="tabs">
+      <button type="button" id="tab-single" aria-pressed="true">Single launch</button>
+      <button type="button" id="tab-compare" aria-pressed="false">Accuracy test</button>
+    </div>
+
+    <section class="card">
+      <h2>Setup</h2>
+      <div id="kindbox">
+        <div class="seg">
+          <button type="button" id="k-pin" aria-pressed="true">Modified: base + angle pin</button>
+          <button type="button" id="k-hand" aria-pressed="false">Original: handheld</button>
+        </div>
+      </div>
+      <h3>Launch angle (pin holes)</h3>
+      <div class="seg" id="angles">
+        <button type="button" data-a="0">0°</button>
+        <button type="button" data-a="30">30°</button>
+        <button type="button" data-a="45" aria-pressed="true">45°</button>
+        <button type="button" data-a="60">60°</button>
+        <button type="button" data-a="90">90°</button>
+      </div>
+      <div class="row"><label for="s-x">Pullback distance <output id="o-x"></output></label><input type="range" id="s-x" min="0.20" max="0.65" step="0.01" value="0.50"></div>
+      <div class="row"><label for="s-m">Balloon mass <output id="o-m"></output></label><input type="range" id="s-m" min="0.10" max="0.40" step="0.01" value="0.20"></div>
+      <div class="row"><label for="s-k">Band stiffness k <output id="o-k"></output></label><input type="range" id="s-k" min="40" max="300" step="5" value="120"></div>
+      <div class="row"><label for="s-h">Release height <output id="o-h"></output></label><input type="range" id="s-h" min="0.70" max="1.20" step="0.01" value="0.75"></div>
+
+      <div id="single-actions">
+        <div class="actions">
+          <button class="primary" type="button" id="launch">Launch</button>
+          <button type="button" id="speed">Flight speed: real time</button>
+        </div>
+        <p class="note" id="shotnote">Pin locked at 45°. Meter stick reads 50 cm.</p>
+      </div>
+    </section>
+
+    <section class="card" id="panel-compare" hidden>
+      <h2>Accuracy test</h2>
+      <p class="note" style="margin-top:0">Both launchers aim at the same target with the same angle, pullback, mass and bands. Only the handheld one wobbles.</p>
+      <div class="row"><label for="w-ang">Handheld angle wobble <output id="o-wang"></output></label><input type="range" id="w-ang" min="0" max="10" step="0.5" value="5"></div>
+      <div class="row"><label for="w-aim">Handheld left/right wobble <output id="o-waim"></output></label><input type="range" id="w-aim" min="0" max="10" step="0.5" value="4"></div>
+      <div class="row"><label for="w-pull">Handheld pullback error <output id="o-wpull"></output></label><input type="range" id="w-pull" min="0" max="10" step="0.5" value="4"></div>
+      <div class="actions">
+        <button class="primary" type="button" id="fire">Fire 20 shots each</button>
+        <button type="button" id="clear">Clear</button>
+      </div>
+      <canvas class="scatter" id="scatter" aria-label="Top-down plot of where the balloons landed"></canvas>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--hand)"></i>Original, handheld</span>
+        <span><i class="sw" style="background:var(--pin)"></i>Modified, pinned</span>
+        <span><i class="sw" style="border:2px solid var(--ink);border-radius:50%"></i>1 m target zone</span>
+      </div>
+      <table>
+        <thead><tr><th>After <span id="n-shots">0</span> shots</th><th class="h">Handheld</th><th class="p">Pinned</th></tr></thead>
+        <tbody>
+          <tr><td>Average miss from target</td><td id="t-miss-h">-</td><td id="t-miss-p">-</td></tr>
+          <tr><td>Shots inside 1 m zone</td><td id="t-hit-h">-</td><td id="t-hit-p">-</td></tr>
+          <tr><td>Average distance</td><td id="t-avg-h">-</td><td id="t-avg-p">-</td></tr>
+          <tr><td>Distance spread (std dev)</td><td id="t-sd-h">-</td><td id="t-sd-p">-</td></tr>
+        </tbody>
+      </table>
+      <p class="note">The wobble sizes are estimates. Replace them with numbers from real trials. The pinned launcher is given 0.5° of slop and 0.5 cm of meter stick reading error.</p>
+    </section>
+  </div>
+
+  <section class="readouts">
+    <div class="card">
+      <h2>Kinematics</h2>
+      <div class="cards">
+        <div>
+          <div class="kv"><span>Launch speed v₀</span><b id="r-v0"></b></div>
+          <div class="kv"><span>Time in the air</span><b id="r-tf"></b></div>
+          <div class="kv"><span>Peak height</span><b id="r-peak"></b></div>
+          <div class="kv"><span>Landing distance</span><b id="r-range"></b></div>
+        </div>
+        <div>
+          <div class="kv"><span>Now: time</span><b id="l-t"></b></div>
+          <div class="kv"><span>Now: speed</span><b id="l-v"></b></div>
+          <div class="kv"><span>Now: height</span><b id="l-h"></b></div>
+          <div class="kv"><span>Now: band stretch</span><b id="l-s"></b></div>
+        </div>
+      </div>
+      <canvas class="plot" id="plot" aria-label="Side view plot of the balloon path, height against distance"></canvas>
+      <p class="eq">x = v₀·cosθ·t &nbsp;&nbsp; y = h + v₀·sinθ·t − ½·g·t² &nbsp;&nbsp; g = 9.8 m/s²</p>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <h2>Forces</h2>
+        <div class="kv"><span>Band force at full pullback</span><b id="r-fband"></b></div>
+        <div class="kv"><span>Balloon weight</span><b id="r-weight"></b></div>
+        <div class="kv"><span>Net force along the rail at release</span><b id="r-fnet"></b></div>
+        <div class="kv"><span>Starting acceleration</span><b id="r-a0"></b></div>
+        <p class="eq">F_band = k·s &nbsp;&nbsp; W = m·g<br>F_net = k·s − m·g·sinθ = m·a</p>
+        <p class="note">Arrows in the 3D view show the band force and the weight on the balloon. Arrow length grows with the square root of the force so the weight stays visible.</p>
+      </div>
+      <div class="card">
+        <h2>Energy</h2>
+        <div class="kv"><span>Stored in the bands</span><b id="r-eel"></b></div>
+        <div class="kv"><span>Kinetic at release</span><b id="r-ke0"></b></div>
+        <div class="kv"><span>Spent lifting the balloon up the rail</span><b id="r-dg"></b></div>
+        <div class="ebar" aria-hidden="true"><i id="e-el" style="background:var(--el)"></i><i id="e-ke" style="background:var(--ke)"></i><i id="e-g" style="background:var(--gpe)"></i></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--el)"></i>Elastic <b id="e-el-v"></b></span>
+          <span><i class="sw" style="background:var(--ke)"></i>Kinetic <b id="e-ke-v"></b></span>
+          <span><i class="sw" style="background:var(--gpe)"></i>Gravitational <b id="e-g-v"></b></span>
+        </div>
+        <p class="eq">½·k·x² = ½·m·v₀² + m·g·x·sinθ</p>
+        <p class="note">With no air resistance the total stays the same from release to landing.</p>
+      </div>
+      <div class="card">
+        <h2>Momentum</h2>
+        <div class="kv"><span>Momentum at release</span><b id="r-p0"></b></div>
+        <div class="kv"><span>Time the bands push</span><b id="r-ts"></b></div>
+        <div class="kv"><span>Average net force during the push</span><b id="r-favg"></b></div>
+        <div class="kv"><span>Speed at landing</span><b id="r-vl"></b></div>
+        <div class="kv"><span>Momentum at landing</span><b id="r-pl"></b></div>
+        <p class="eq">p = m·v &nbsp;&nbsp; impulse J = F_avg·Δt = Δp</p>
+        <p class="note">The balloon starts at rest, so the impulse from the launch equals its momentum at release. The ground must give the same size of impulse as the landing momentum to stop it.</p>
+      </div>
+      <div class="card">
+        <h2>Assumptions</h2>
+        <ul class="plain">
+          <li>No air resistance.</li>
+          <li>The bands follow Hooke's law, F = k·s.</li>
+          <li>The balloon leaves the pouch when the bands return to their rest length, at the release height.</li>
+          <li>Mass, stiffness and wobble are estimates until measured on the real launcher.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div class="card">
+      <h2>What each part of this page shows</h2>
+      <ol class="map">
+        <li><strong>Projectile physics engine.</strong> The Kinematics card and the path plot update with every slider.</li>
+        <li><strong>Forces and energy tracker.</strong> Force arrows ride on the balloon in the 3D view. The energy bar follows elastic, kinetic and gravitational energy through the launch.</li>
+        <li><strong>Interactive 3D launcher.</strong> Rotate and zoom the model. Parts are labeled to match the blueprint.</li>
+        <li><strong>Animated modification.</strong> Pick an angle and the pin pulls out, the rail tilts and the pin locks. Step through Load, Release, Flight and Impact.</li>
+        <li><strong>Original against modified.</strong> The accuracy test fires 20 shots from each launcher at the same settings and compares where they land.</li>
+        <li><strong>Momentum and variables.</strong> The Momentum card, with sliders for mass, pullback, band stiffness and release height.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ---------- settings ---------- */
+var g = 9.8;                       // gravity, m/s^2
+var DEG = Math.PI/180;
+var FORK = 0.30;                   // fork posts sit 0.30 m ahead of the release point
+var P = {theta:45, x:0.50, m:0.20, k:120, h:0.75};   // angle (deg), pullback (m), mass (kg), stiffness (N/m), release height (m)
+var W = {ang:5, aim:4, pull:4};    // handheld wobble: angle (deg), left/right (deg), pullback (cm)
+var PINERR = {ang:0.5, aim:0.5, pull:0.5};            // pinned launcher: small slop and reading error
+var COL = {hand:0xc2410c, pin:0x0f6e8c, el:0x7a5ea8, ink:0x14242e, ke:0xe4572e};
+
+var $ = function(id){ return document.getElementById(id); };
+var clamp = function(v,a,b){ return Math.max(a, Math.min(b, v)); };
+var lerp = function(a,b,t){ return a+(b-a)*t; };
+var ease = function(u){ u = clamp(u,0,1); return u*u*(3-2*u); };
+var fx = function(n,d){ return (Math.abs(n)<5e-7?0:n).toFixed(d); };
+
+/* ---------- physics ---------- */
+// One launch. err holds the small mistakes of this particular shot (zero for a perfect shot).
+function computeShot(p, err){
+  var th  = (p.theta + (err?err.dth:0)) * DEG;        // actual launch angle
+  var phi = (err?err.dphi:0) * DEG;                   // left/right aim error
+  var x   = Math.max(0.02, p.x + (err?err.dx:0));     // actual pullback
+  var m = p.m, k = p.k, h = p.h;
+
+  // Launch stroke: the band pulls with k*s while gravity pulls back along the rail with m*g*sin(theta).
+  // That is simple harmonic motion around the stretch se where the two forces balance.
+  var w  = Math.sqrt(k/m);
+  var se = m*g*Math.sin(th)/k;
+  var A  = x - se;
+  var launches = x > 2*se + 1e-9;                     // otherwise the band is too weak to push the balloon out
+  var v0 = 0, tS = 0;
+  if(launches){
+    // Energy: 1/2 k x^2 = 1/2 m v0^2 + m g x sin(theta)
+    v0 = Math.sqrt(Math.max(0, k*x*x/m - 2*g*x*Math.sin(th)));
+    tS = Math.acos(clamp(-se/A,-1,1))/w;              // time for the stretch to go from x to 0
+  }
+
+  // Flight: constant velocity sideways, constant acceleration g downward.
+  var vx = v0*Math.cos(th), vy = v0*Math.sin(th);
+  var tF = (vy + Math.sqrt(vy*vy + 2*g*h))/g;         // solve h + vy t - 1/2 g t^2 = 0
+  var R  = vx*tF;
+  var vyL = vy - g*tF;
+  return {th:th, phi:phi, x:x, m:m, k:k, h:h, w:w, se:se, A:A, launches:launches,
+          v0:v0, tS:tS, vx:vx, vy:vy, tF:tF, R:R,
+          peak: h + (vy>0 ? vy*vy/(2*g) : 0),
+          vL: Math.sqrt(vx*vx + vyL*vyL),
+          Eel: 0.5*k*x*x,
+          Etot: 0.5*k*x*x + m*g*(h - x*Math.sin(th)),
+          lx: R*Math.cos(phi), lz: R*Math.sin(phi)};
+}
+// Stretch and speed t seconds into the launch stroke.
+function stroke(s, t){
+  return {s: s.se + s.A*Math.cos(s.w*t), v: s.A*s.w*Math.sin(s.w*t)};
+}
+
+/* ---------- random wobble ---------- */
+var seed = 20261116;
+function rnd(){ seed = (seed + 0x6D2B79F5) | 0; var t = Math.imul(seed ^ (seed>>>15), 1|seed); t = (t + Math.imul(t ^ (t>>>7), 61|t)) ^ t; return ((t ^ (t>>>14))>>>0)/4294967296; }
+function gauss(){ var u = 0; while(u < 1e-9) u = rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*rnd()); }
+function sampleErr(kind){ var s = kind==='hand' ? W : PINERR; return {dth:gauss()*s.ang, dphi:gauss()*s.aim, dx:gauss()*s.pull/100}; }
+
+/* ---------- 3D scene ---------- */
+var stage = $('stage'), canvas = $('c3d'), labelBox = $('labels');
+var renderer;
+try { renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true}); }
+catch(e){ $('status').textContent = 'This browser could not start the 3D view. The plots and numbers below still work.'; }
+var scene = new THREE.Scene(); scene.background = new THREE.Color(0xdde6ea);
+var camera = new THREE.PerspectiveCamera(45, 1.6, 0.05, 800);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8f9ca3, 0.95));
+var sun = new THREE.DirectionalLight(0xffffff, 0.55); sun.position.set(-4,10,6); scene.add(sun);
+
+var ground = new THREE.Mesh(new THREE.PlaneGeometry(600,600), new THREE.MeshLambertMaterial({color:0xe4ebe0, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1}));
+ground.rotation.x = -Math.PI/2; scene.add(ground);
+var grid1 = new THREE.GridHelper(200, 200, 0xc6d0c8, 0xc6d0c8); grid1.position.y = 0.002; scene.add(grid1);   // 1 m squares
+var grid5 = new THREE.GridHelper(200, 40, 0x8c9d94, 0x8c9d94); grid5.position.y = 0.004; scene.add(grid5);    // 5 m squares
+
+function M(c, o){ var p = {color:c}; if(o) for(var k in o) p[k] = o[k]; return new THREE.MeshLambertMaterial(p); }
+var mat = {wood:M(0xc49c6c), wood2:M(0x9a7346), metal:M(0x55626b), band:M(0xe0a100), pouch:M(0x1f3a4d),
+           balloon:M(0xe4572e), pin:M(0x0f6e8c), stick:M(0xf2c94c), tick:M(0x33332a), person:M(0x8e9ca5, {transparent:true, opacity:0.5}),
+           plate:M(0xf3f5f6), hole:M(0x1b2830)};
+var UP = new THREE.Vector3(0,1,0);
+function V(x,y,z){ return new THREE.Vector3(x,y,z); }
+function box(parent, w,h,d, m, x,y,z){ var o = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m); o.position.set(x,y,z); parent.add(o); return o; }
+function rod(parent, r, m){ var o = new THREE.Mesh(new THREE.CylinderGeometry(r,r,1,12), m); parent.add(o); return o; }
+function setRod(o, a, b){ var d = V(0,0,0).subVectors(b,a); var len = d.length() || 1e-6; o.position.copy(a).addScaledVector(d,0.5); o.scale.set(1,len,1); o.quaternion.setFromUnitVectors(UP, d.multiplyScalar(1/len)); }
+function ball(parent, r, m, x,y,z){ var o = new THREE.Mesh(new THREE.SphereGeometry(r,20,14), m); o.position.set(x,y,z); parent.add(o); return o; }
+
+/* labels: HTML tags that follow a point in the 3D scene */
+var labels = [];
+var TR = {u:'translate(-50%,-135%)', d:'translate(-50%,35%)', l:'translate(-108%,-50%)', r:'translate(8%,-50%)'};
+function addLabel(parent, x,y,z, text, cls, show, side){
+  var obj = new THREE.Object3D(); obj.position.set(x,y,z); parent.add(obj);
+  var el = document.createElement('div'); el.className = 'lab' + (cls ? ' '+cls : ''); el.textContent = text; el.style.display = 'none'; labelBox.appendChild(el);
+  var l = {obj:obj, el:el, show:show, shown:false, tr:TR[side||'u']}; labels.push(l); return l;
+}
+var labelsOn = true;
+var tmp = V(0,0,0), tmp2 = V(0,0,0);
+
+/* a launcher: kind 'pin' is the modified one, 'hand' the original */
+var launchers = {};
+function makeLauncher(kind){
+  var L = {kind:kind, lane:0, root:new THREE.Group(), yaw:new THREE.Group(), sling:new THREE.Group(), stand:new THREE.Group(),
+           thetaIdle:P.theta*DEG, pinOut:0, pull:0, tween:null, on:true};
+  scene.add(L.root); L.root.add(L.yaw); L.yaw.add(L.sling); L.root.add(L.stand);
+  var color = COL[kind];
+  var near = function(){ return L.on && labelsOn && cam.dist < 7; };
+
+  // fork posts (pin) or handles (hand), bands, pouch. Sling origin = release point, +x = launch direction.
+  var postMat = kind==='pin' ? mat.wood2 : mat.pouch;
+  [-1,1].forEach(function(sg){ setRod(rod(L.sling, 0.02, postMat), V(FORK,-0.07,sg*0.22), V(FORK,0.14,sg*0.22)); });
+  L.bands = [rod(L.sling, 0.008, mat.band), rod(L.sling, 0.008, mat.band)];
+  L.pouch = box(L.sling, 0.02,0.11,0.13, mat.pouch, 0,0,0);
+  addLabel(L.sling, 0.16,0.02,0.2, 'Elastic bands', '', near, 'r');
+  addLabel(L.pouch, -0.02,0.03,0, 'Pouch + balloon', '', near, 'l');
+
+  if(kind==='pin'){
+    box(L.sling, 1.0,0.04,0.10, mat.wood, -0.20,-0.07,0);            // rail, 1 m long
+    box(L.sling, 0.05,0.04,0.50, mat.wood2, FORK,-0.07,0);           // fork crossbar
+    box(L.sling, 0.12,0.11,0.012, mat.wood2, 0,-0.035,-0.056);       // cheek that hangs the rail from the pivot
+    box(L.sling, 1.0,0.03,0.006, mat.stick, -0.20,-0.045,0.054);     // meter stick
+    for(var i=0;i<=10;i++) box(L.sling, 0.004, i%5===0?0.03:0.016, 0.007, mat.tick, FORK-0.004-i*0.0992, -0.045+(i%5===0?0:0.007), 0.0545);
+    L.pinG = new THREE.Group(); L.pinG.position.set(-0.22,-0.07,0); L.sling.add(L.pinG);
+    var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.19,12), mat.metal); shaft.rotation.x = Math.PI/2; shaft.position.z = 0.019; L.pinG.add(shaft);
+    ball(L.pinG, 0.028, mat.pin, 0,0,0.13);
+    addLabel(L.pinG, 0,0,0.15, 'Angle pin', 'mark', near, 'r');
+    addLabel(L.sling, -0.70,-0.07,0, 'Rail', '', near, 'l');
+    L.stickLabel = addLabel(L.sling, -0.45,-0.06,0.054, 'Meter stick', '', near, 'd');
+    addLabel(L.sling, FORK,0.16,0.22, 'Fork posts', '', near);
+    L.aBase = addLabel(L.root, 0.52,0.03,0.45, 'Base', '', near, 'd');
+    L.aPost = addLabel(L.root, 0,0.3,-0.105, 'Support post', '', near, 'r');
+    L.aPivot = addLabel(L.root, 0,P.h,-0.14, 'Pivot', '', near, 'r');
+    L.aPlate = addLabel(L.root, -0.2,P.h-0.2,-0.06, 'Angle plate', '', near, 'l');
+    L.holeLabels = [0,30,45,60,90].map(function(a){ return {a:a, l:addLabel(L.root, 0,0,0, a+'°', 'hole', function(){ return L.on && labelsOn && cam.dist < 2.3; })}; });
+  } else {
+    // three people, drawn as simple figures: two hold the handles, one pulls the pouch
+    L.people = [-1,1].map(function(sg){
+      var gp = new THREE.Group(); gp.position.set(FORK,0,sg*0.68); L.root.add(gp);
+      var b = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.14,1.2,16), mat.person); b.position.y = 0.6; gp.add(b);
+      ball(gp, 0.11, mat.person, 0,1.33,0);
+      return {sg:sg, arm:rod(L.root, 0.035, mat.person)};
+    });
+    L.puller = new THREE.Group(); L.root.add(L.puller);
+    var pb = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.14,1.2,16), mat.person); pb.position.y = 0.6; L.puller.add(pb);
+    ball(L.puller, 0.11, mat.person, 0,1.33,0);
+    L.pullArm = rod(L.root, 0.035, mat.person);
+    addLabel(L.sling, FORK,0.16,0.22, 'Handle, person 1', '', near);
+    addLabel(L.sling, FORK,0.0,-0.22, 'Handle, person 2', '', near, 'r');
+    addLabel(L.puller, 0,1.5,0, 'Puller, person 3', '', near);
+  }
+
+  // balloon, its ground shadow, predicted path, flown trail, target ring, landing marks
+  L.balloon = ball(scene, 1, mat.balloon, 0,0,0);
+  L.shadow = new THREE.Mesh(new THREE.CircleGeometry(1,20), new THREE.MeshBasicMaterial({color:0x14242e, transparent:true, opacity:0.22}));
+  L.shadow.rotation.x = -Math.PI/2; scene.add(L.shadow);
+  var NP = 80;
+  L.pathGeo = new THREE.BufferGeometry(); L.pathGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP*3),3));
+  L.path = new THREE.Line(L.pathGeo, new THREE.LineDashedMaterial({color:0x55666f, dashSize:0.22, gapSize:0.16})); L.path.frustumCulled = false; scene.add(L.path);
+  L.trailGeo = new THREE.BufferGeometry(); L.trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP*3),3)); L.trailGeo.setDrawRange(0,0);
+  L.trail = new THREE.Line(L.trailGeo, new THREE.LineBasicMaterial({color:color})); L.trail.frustumCulled = false; scene.add(L.trail);
+  L.NP = NP;
+  L.target = new THREE.Mesh(new THREE.RingGeometry(0.93,1.0,56), new THREE.MeshBasicMaterial({color:0x14242e, side:THREE.DoubleSide}));
+  L.target.rotation.x = -Math.PI/2; scene.add(L.target);
+  L.targetLabel = addLabel(L.target, 0,0,0, 'Predicted landing', 'mark', function(){ return L.on && labelsOn; });
+  L.splats = new THREE.Group(); scene.add(L.splats);
+  L.splatMat = new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0.85});
+  L.splash = new THREE.Mesh(new THREE.RingGeometry(0.8,1.0,40), new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0, side:THREE.DoubleSide}));
+  L.splash.rotation.x = -Math.PI/2; scene.add(L.splash);
+  launchers[kind] = L;
+  return L;
+}
+
+// the fixed stand of the modified launcher. Rebuilt when the release height changes.
+function buildStand(L){
+  if(L.kind!=='pin') return;
+  while(L.stand.children.length){ var c = L.stand.children.pop(); if(c.geometry) c.geometry.dispose(); }
+  var h = P.h, S = L.stand;
+  box(S, 1.3,0.06,0.12, mat.wood, -0.05,0.03,-0.12);                 // long base beam
+  box(S, 0.12,0.058,0.9, mat.wood, -0.62,0.029,0);                   // rear cross beam
+  box(S, 0.12,0.058,0.9, mat.wood, 0.52,0.029,0);                    // front cross beam
+  box(S, 0.06,h-0.03,0.06, mat.wood2, 0,(h+0.09)/2,-0.105);          // support post
+  setRod(rod(S, 0.018, mat.wood2), V(-0.45,0.06,-0.105), V(0,h-0.22,-0.105));
+  setRod(rod(S, 0.018, mat.wood2), V(0.40,0.06,-0.105), V(0,h-0.22,-0.105));
+  var axle = new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.016,0.10,12), mat.metal); axle.rotation.x = Math.PI/2; axle.position.set(0,h,-0.095); S.add(axle);
+  // angle plate: a quarter disc with one hole per angle
+  var sh = new THREE.Shape(); sh.moveTo(0,0); sh.absarc(0,0,0.31, 185*DEG, 300*DEG, false); sh.lineTo(0,0);
+  var plate = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, {depth:0.012, bevelEnabled:false}), mat.plate); plate.position.set(0,h,-0.075); S.add(plate);
+  L.holeLabels.forEach(function(hl){
+    var a = hl.a*DEG, x = -0.22*Math.cos(a) + 0.07*Math.sin(a), y = -0.22*Math.sin(a) - 0.07*Math.cos(a);   // where the rail's pin hole sits at this angle
+    var hole = new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.014,14), mat.hole); hole.rotation.x = Math.PI/2; hole.position.set(x,h+y,-0.069); S.add(hole);
+    hl.l.obj.position.set(x*1.28, h+y*1.28, -0.06);
+  });
+  L.aPost.obj.position.set(0.03,h*0.3,-0.075);
+  L.aPivot.obj.position.set(0.03,h+0.03,-0.1);
+  L.aPlate.obj.position.set(-0.13,h-0.26,-0.06);
+}
+
+// put the moving parts of a launcher where they belong for this frame
+function pose(L, th, phi, pull, rB){
+  L.yaw.position.y = P.h;
+  L.yaw.rotation.y = -phi;
+  L.sling.rotation.z = th;
+  L.pull = pull;
+  L.pouch.position.x = -pull - rB - 0.012;
+  setRod(L.bands[0], V(FORK,0.02,-0.22), V(-pull-rB,0,-0.065));
+  setRod(L.bands[1], V(FORK,0.02, 0.22), V(-pull-rB,0, 0.065));
+  if(L.pinG) L.pinG.position.z = 0.12*L.pinOut;
+  L.root.position.z = L.lane;
+  L.root.updateMatrixWorld(true);
+  if(L.kind==='hand'){
+    L.people.forEach(function(p){
+      var hnd = L.root.worldToLocal(L.sling.localToWorld(V(FORK,0.03,p.sg*0.22)));
+      setRod(p.arm, V(FORK,1.08,p.sg*0.58), hnd);
+    });
+    var pp = L.root.worldToLocal(L.sling.localToWorld(V(-pull-rB-0.02,0,0)));
+    L.puller.position.set(pp.x-0.45, 0, pp.z);
+    setRod(L.pullArm, V(pp.x-0.40,1.05,pp.z), pp);
+  }
+}
+function setOn(L, on){
+  L.on = on;
+  [L.root, L.balloon, L.shadow, L.path, L.trail, L.target, L.splats, L.splash].forEach(function(o){ o.visible = on; });
+}
+function balloonR(){ return Math.cbrt(3*P.m/(4*Math.PI*1000)); }     // radius of a sphere of water with this mass
+function placeBalloon(L, pos, flying){
+  var r = balloonR();
+  var vis = Math.max(r, 0.011*camera.position.distanceTo(pos));      // keep it visible from far away
+  L.balloon.position.copy(pos); L.balloon.scale.setScalar(vis);
+  L.shadow.visible = L.on && flying;
+  L.shadow.position.set(pos.x, 0.012, pos.z); L.shadow.scale.setScalar(vis*1.1);
+}
+function flightPos(L, s, t, out){
+  var d = s.vx*t;
+  return out.set(d*Math.cos(s.phi), Math.max(0, s.h + s.vy*t - 0.5*g*t*t), d*Math.sin(s.phi) + L.lane);
+}
+function addSplat(L, s, r){
+  var m = new THREE.Mesh(new THREE.CircleGeometry(r,18), L.splatMat); m.rotation.x = -Math.PI/2;
+  m.position.set(s.lx, 0.014 + 0.0004*L.splats.children.length, s.lz + L.lane); L.splats.add(m);
+}
+function clearSplats(L){ while(L.splats.children.length){ var c = L.splats.children.pop(); c.geometry.dispose(); } }
+
+/* force arrows */
+function makeArrow(color, text){
+  var gr = new THREE.Group(), m = new THREE.MeshBasicMaterial({color:color});
+  var sh = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,1,8), m), hd = new THREE.Mesh(new THREE.ConeGeometry(0.035,0.09,12), m);
+  gr.add(sh); gr.add(hd); scene.add(gr); gr.visible = false;
+  var a = {g:gr, sh:sh, hd:hd, text:text};
+  a.label = addLabel(gr, 0,0,0, text, 'force', function(){ return gr.visible; });
+  a.label.el.style.background = '#' + ('000000'+color.toString(16)).slice(-6);
+  return a;
+}
+function setArrow(a, origin, dir, newtons, scale){
+  if(newtons < 0.01){ a.g.visible = false; return; }
+  var len = 0.18*Math.sqrt(newtons), hl = Math.min(0.09, len*0.5);
+  a.g.visible = true; a.g.position.copy(origin); a.g.quaternion.setFromUnitVectors(UP, dir); a.g.scale.setScalar(scale);
+  a.sh.scale.y = len-hl; a.sh.position.y = (len-hl)/2; a.hd.position.y = len-hl/2; a.hd.scale.setScalar(hl/0.09);
+  a.label.obj.position.y = len + 0.03;
+  a.label.el.textContent = a.text + ' ' + fx(newtons, newtons<10?1:0) + ' N';
+}
+var arrowBand = makeArrow(COL.el, 'Band'), arrowW = makeArrow(COL.ink, 'Weight');
+
+/* distance markers every 5 m */
+var distLabels = [];
+for(var di=1; di<=16; di++) (function(d){
+  distLabels.push(addLabel(scene, d, 0, -1.4, d+' m', 'dist', function(){ return labelsOn && cam.dist > 4.5 && d <= ideal.R + 8; }));
+})(di*5);
+
+/* ---------- camera ---------- */
+var cam = {tx:-0.1, ty:0.56, tz:0, dist:3.3, az:-0.42, el:0.2, goal:null};
+var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function camGoal(o){ if(reduceMotion){ for(var k in o) cam[k] = o[k]; cam.goal = null; } else cam.goal = o; }
+function camApply(dt){
+  if(cam.goal){
+    var k = 1 - Math.exp(-dt*4.5), far = 0;
+    for(var key in cam.goal){ var d = cam.goal[key] - cam[key]; cam[key] += d*k; far = Math.max(far, Math.abs(d)); }
+    if(far < 0.002) cam.goal = null;
+  }
+  var ce = Math.cos(cam.el);
+  camera.position.set(cam.tx + cam.dist*Math.sin(cam.az)*ce, cam.ty + cam.dist*Math.sin(cam.el), cam.tz + cam.dist*Math.cos(cam.az)*ce);
+  camera.lookAt(cam.tx, cam.ty, cam.tz);
+}
+var narrow = function(){ return stage.clientWidth < stage.clientHeight*1.5; };
+function viewLauncher(){
+  if(mode==='single'){ if(active==='pin') camGoal({tx:-0.12, ty:P.h*0.72, tz:0, dist:narrow()?3.0:2.7, az:-0.42, el:0.2}); else camGoal({tx:-0.2, ty:P.h*0.9, tz:0, dist:narrow()?4.4:3.8, az:-1.05, el:0.5}); }
+  else camGoal({tx:0, ty:0.5, tz:0, dist:narrow()?10.5:8.5, az:-0.75, el:0.3});
+}
+function viewField(){
+  var R = Math.max(ideal.R, 2);
+  if(mode==='single') camGoal({tx:R*0.55, ty:Math.min(ideal.peak/2,4), tz:0, dist:Math.max(7, R*(narrow()?1.45:0.95)+3, ideal.peak*1.7), az:-0.3, el:0.3});
+  else camGoal({tx:R*0.55, ty:0, tz:0, dist:Math.max(11, R*(narrow()?1.05:0.8)+8), az:-1.2, el:0.55});
+}
+var ptrs = new Map(), pinch0 = 0, dist0 = 0;
+function pinchD(){ var a = Array.from(ptrs.values()); return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y) || 1; }
+canvas.addEventListener('pointerdown', function(e){ try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY}); cam.goal = null; if(ptrs.size===2){ pinch0 = pinchD(); dist0 = cam.dist; } });
+canvas.addEventListener('pointermove', function(e){
+  var p = ptrs.get(e.pointerId); if(!p) return;
+  var dx = e.clientX-p.x, dy = e.clientY-p.y; p.x = e.clientX; p.y = e.clientY;
+  if(ptrs.size===1){ cam.az -= dx*0.006; cam.el = clamp(cam.el + dy*0.006, 0.03, 1.5); }
+  else if(ptrs.size===2){ cam.dist = clamp(dist0*pinch0/pinchD(), 1.2, 200); }
+});
+function ptrEnd(e){ ptrs.delete(e.pointerId); }
+canvas.addEventListener('pointerup', ptrEnd); canvas.addEventListener('pointercancel', ptrEnd);
+canvas.addEventListener('wheel', function(e){ e.preventDefault(); cam.goal = null; cam.dist = clamp(cam.dist*Math.exp(e.deltaY*0.0012), 1.2, 200); }, {passive:false});
+
+/* ---------- state ---------- */
+var mode = 'single', active = 'pin';
+var ideal = computeShot(P, null);          // the perfect shot for the current settings
+var PH = ['load','release','flight','impact'];
+var play = {shot:null, phase:'load', u:0, paused:true, done:false, slow:false};
+var cmp = {plan:null, i:0, u:0, running:false, n:20, done:{hand:[], pin:[]}};
+makeLauncher('hand'); makeLauncher('pin'); buildStand(launchers.pin);
+
+function updatePrediction(){
+  ideal = computeShot(P, null);
+  ['hand','pin'].forEach(function(kind){
+    var L = launchers[kind], pos = L.pathGeo.attributes.position;
+    for(var i=0;i<L.NP;i++){ flightPos(L, ideal, ideal.tF*i/(L.NP-1), tmp); pos.setXYZ(i, tmp.x, Math.max(tmp.y,0.02), tmp.z); }
+    pos.needsUpdate = true; L.path.computeLineDistances();
+    L.target.position.set(ideal.R, 0.01, L.lane);
+    var sc = mode==='single' ? 0.35 : 1; L.target.scale.set(sc,sc,sc);
+    L.targetLabel.el.textContent = mode==='single' ? 'Predicted landing ' + fx(ideal.R,1) + ' m' : (kind==='hand' ? 'Handheld target' : 'Pinned target');
+    if(L.stickLabel) L.stickLabel.el.textContent = 'Meter stick reads ' + Math.round(P.x*100) + ' cm';
+  });
+  distLabels.forEach(function(l){ l.obj.position.z = mode==='single' ? -1.4 : 0; });
+  fillReadouts(play.shot || ideal);
+}
+function setMode(m){
+  mode = m;
+  $('tab-single').setAttribute('aria-pressed', m==='single'); $('tab-compare').setAttribute('aria-pressed', m==='compare');
+  $('panel-compare').hidden = m!=='compare'; $('single-actions').hidden = m!=='single'; $('kindbox').hidden = m!=='single'; $('phases').hidden = false;
+  Array.prototype.forEach.call(document.querySelectorAll('#phases .chip'), function(c){ c.hidden = m!=='single'; });
+  resetPlay(); clearCompare();
+  launchers.hand.lane = m==='single' ? 0 : -2.5; launchers.pin.lane = m==='single' ? 0 : 2.5;
+  setOn(launchers.hand, m==='compare' || active==='hand'); setOn(launchers.pin, m==='compare' || active==='pin');
+  updatePrediction();
+  if(m==='single'){ viewLauncher(); setStatus('Ready. Drag to rotate, pinch or scroll to zoom.'); }
+  else { viewField(); setStatus('Left lane: handheld. Right lane: pinned.'); }
+}
+function setKind(k){
+  active = k; $('k-pin').setAttribute('aria-pressed', k==='pin'); $('k-hand').setAttribute('aria-pressed', k==='hand');
+  resetPlay(); setOn(launchers.hand, k==='hand'); setOn(launchers.pin, k==='pin'); updatePrediction(); viewLauncher();
+}
+function setStatus(t){ $('status').textContent = t; }
+function resetPlay(){
+  play.shot = null; play.u = 0; play.paused = true; play.done = false; play.phase = 'load';
+  ['hand','pin'].forEach(function(k){ var L = launchers[k]; L.trailGeo.setDrawRange(0,0); clearSplats(L); L.splash.material.opacity = 0; });
+  arrowBand.g.visible = false; arrowW.g.visible = false;
+  uiPlay(); shotNote(null);
+}
+function shotNote(s){
+  var el = $('shotnote'); el.className = 'note';
+  if(!ideal.launches){ el.className = 'note warn'; el.textContent = 'The bands are too weak to push the balloon up the rail at this angle. Raise the stiffness or the pullback.'; return; }
+  if(!s || active==='pin'){ el.textContent = active==='pin' ? 'Pin locked at ' + P.theta + '°. Meter stick reads ' + Math.round(P.x*100) + ' cm.' : 'Three people hold it by hand. Every launch comes out a little different.'; return; }
+  el.textContent = 'This throw left at ' + fx(s.th/DEG,1) + '°, ' + fx(Math.abs(s.phi/DEG),1) + '° off line, with ' + Math.round(s.x*100) + ' cm of pullback. The aim was ' + P.theta + '° and ' + Math.round(P.x*100) + ' cm.';
+}
+function uiPlay(){
+  $('launch').textContent = !play.shot || play.done ? 'Launch' : (play.paused ? 'Play' : 'Pause');
+  Array.prototype.forEach.call(document.querySelectorAll('#phases .chip'), function(c){
+    c.classList.toggle('on', !!play.shot && c.getAttribute('data-ph')===play.phase);
+  });
+}
+function newShot(){
+  var L = launchers[active];
+  play.shot = computeShot(P, sampleErr(active)); play.done = false;
+  var pos = L.trailGeo.attributes.position;
+  for(var i=0;i<L.NP;i++){ flightPos(L, play.shot, play.shot.tF*i/(L.NP-1), tmp); pos.setXYZ(i, tmp.x, Math.max(tmp.y,0.02), tmp.z); }
+  pos.needsUpdate = true; L.trailGeo.setDrawRange(0,0); clearSplats(L);
+  fillReadouts(play.shot); shotNote(play.shot);
+}
+function phaseDur(ph){
+  var s = play.shot, k = play.slow ? 4 : 1;
+  if(ph==='load') return 1.1;
+  if(ph==='release' && !s.launches) return 0.5;
+  if(ph==='release') return 1.4*(play.slow?2:1);
+  if(ph==='flight') return Math.max(0.3, s.tF*k);
+  return 0.9;
+}
+function onPhase(){
+  var s = play.shot, ph = play.phase;
+  if(ph==='load'){ viewLauncher(); setStatus('Load: pull the pouch back to ' + Math.round(s.x*100) + ' cm.'); }
+  if(ph==='release'){ viewLauncher(); setStatus(s.launches ? 'Release: shown ' + Math.round(phaseDur('release')/s.tS) + '× slower than real life.' : 'Release: this pull was too weak to push the balloon out. It drops.'); }
+  if(ph==='flight'){ viewField(); setStatus(play.slow ? 'Flight: shown 4× slower.' : 'Flight: real time.'); }
+  if(ph==='impact'){ addSplat(launchers[active], s, 0.3); setStatus('Impact: landed ' + fx(s.R,1) + ' m away.'); }
+  uiPlay();
+}
+function launch(){
+  if(!ideal.launches){ shotNote(null); return; }
+  if(!play.shot || play.done){ newShot(); play.phase = 'load'; play.u = 0; play.paused = false; onPhase(); }
+  else { play.paused = !play.paused; uiPlay(); }
+}
+function jump(ph){
+  if(mode!=='single' || !ideal.launches) return;
+  if(!play.shot) newShot();
+  play.done = false; play.phase = ph; play.u = 0; play.paused = true;
+  var L = launchers[active]; if(PH.indexOf(ph) < 3) clearSplats(L);
+  onPhase();
+}
+
+/* ---------- per-frame updates ---------- */
+var T = 0, bpos = V(0,0,0), dirv = V(0,0,0), DOWN = V(0,-1,0);
+function stepTween(L, dt){
+  var tw = L.tween; if(!tw) return;
+  tw.t += dt/(L.kind==='pin' ? 1.1 : 0.5); var t = Math.min(1, tw.t);
+  if(L.kind==='pin'){                                    // pin out, rail tilts, pin back in
+    L.pinOut = t<0.25 ? ease(t/0.25) : (t>0.75 ? 1-ease((t-0.75)/0.25) : 1);
+    L.thetaIdle = lerp(tw.from, tw.to, ease((t-0.25)/0.5));
+  } else L.thetaIdle = lerp(tw.from, tw.to, ease(t));
+  if(t>=1){ L.tween = null; L.pinOut = 0; L.thetaIdle = tw.to; }
+}
+function jitter(L){                                      // hands are never perfectly still
+  if(L.kind!=='hand') return [0,0];
+  return [(1.3*Math.sin(2.1*T)+0.8*Math.sin(3.7*T+1))*DEG*W.ang/5, 1.1*Math.sin(1.7*T+2)*DEG*W.aim/4];
+}
+var live = {t:0, v:0, y:P.h, s:0, Eel:0, KE:0, G:0};
+function stepSingle(dt){
+  var L = launchers[active], s = play.shot, rB = balloonR();
+  if(s && !play.paused){
+    play.u += dt/phaseDur(play.phase);
+    if(play.u >= 1){
+      var i = PH.indexOf(play.phase);
+      if(i < PH.length-1){ play.phase = PH[i+1]; play.u = 0; onPhase(); }
+      else { play.u = 1; play.paused = true; play.done = true; uiPlay(); }
+    }
+  }
+  stepTween(L, dt);
+  var j = jitter(L), u = play.u, ph = play.phase;
+  var th = L.thetaIdle + j[0], phi = j[1], pull = 0, flying = false;
+  live.t = 0; live.v = 0; live.y = P.h; live.s = 0; live.Eel = 0; live.KE = 0; live.G = P.m*g*P.h;
+  var bandN = 0, showW = false;
+  if(s){
+    var w = ph==='load' ? ease(u) : 1;
+    th = lerp(L.thetaIdle + j[0], s.th, w); phi = lerp(j[1], s.phi, w);
+    if(ph==='load'){
+      pull = s.x*ease(u);
+      live.s = pull; live.y = s.h - pull*Math.sin(th); live.Eel = 0.5*s.k*pull*pull; bandN = s.k*pull; showW = true;
+    } else if(ph==='release'){
+      var t = u*s.tS, st = stroke(s, t);
+      pull = Math.max(0, st.s); live.t = t; live.v = st.v; live.s = pull;
+      live.y = s.h - pull*Math.sin(s.th); live.Eel = 0.5*s.k*pull*pull; live.KE = 0.5*s.m*st.v*st.v; bandN = s.k*pull; showW = true;
+    } else {
+      var tf = (ph==='flight' ? u : 1)*s.tF, vyy = s.vy - g*tf;
+      flying = ph==='flight';
+      flightPos(L, s, tf, bpos);
+      live.t = s.tS + tf; live.v = Math.sqrt(s.vx*s.vx + vyy*vyy); live.y = bpos.y; live.KE = 0.5*s.m*live.v*live.v; showW = flying;
+      L.trailGeo.setDrawRange(0, Math.max(2, Math.ceil((ph==='flight'?u:1)*(L.NP-1))+1));
+    }
+    live.G = s.m*g*live.y;
+  }
+  pose(L, th, phi, pull, rB);
+  if(!s || ph==='load' || ph==='release'){ bpos.set(-pull,0,0); L.sling.localToWorld(bpos); }
+  L.balloon.visible = !(s && ph==='impact');
+  placeBalloon(L, bpos, flying);
+  // impact ring
+  if(s && ph==='impact'){ L.splash.position.set(s.lx, 0.02, s.lz + L.lane); L.splash.scale.setScalar(0.2 + 1.6*ease(u)); L.splash.material.opacity = 0.9*(1-u); }
+  else L.splash.material.opacity = 0;
+  // force arrows
+  var sc = Math.max(1, camera.position.distanceTo(bpos)/4);
+  if(s && showW){
+    setArrow(arrowW, bpos, DOWN, s.m*g, sc);
+    dirv.set(1,0,0).transformDirection(L.sling.matrixWorld);
+    setArrow(arrowBand, bpos, dirv, bandN, sc);
+  } else { arrowW.g.visible = false; arrowBand.g.visible = false; }
+}
+function stepCompare(dt){
+  var rB = balloonR(), run = cmp.running;
+  if(run) cmp.u += dt/0.42;
+  ['hand','pin'].forEach(function(kind){
+    var L = launchers[kind]; stepTween(L, dt);
+    var j = jitter(L), th = L.thetaIdle + j[0], phi = j[1], pull = 0, flying = false;
+    if(run){
+      var s = cmp.plan[kind][cmp.i]; th = s.th; phi = s.phi;
+      if(cmp.u < 0.18) pull = s.x; else { flying = true; flightPos(L, s, Math.min(1,(cmp.u-0.18)/0.82)*s.tF, bpos); }
+    }
+    pose(L, th, phi, pull, rB);
+    if(!flying){ bpos.set(-pull,0,0); L.sling.localToWorld(bpos); }
+    placeBalloon(L, bpos, flying);
+  });
+  if(run && cmp.u >= 1){
+    ['hand','pin'].forEach(function(kind){ var s = cmp.plan[kind][cmp.i]; addSplat(launchers[kind], s, 0.2); cmp.done[kind].push(s); });
+    cmp.i++; cmp.u = 0; updateStats();
+    if(cmp.i >= cmp.n){ cmp.running = false; $('fire').textContent = 'Fire 20 more'; setStatus('Done. Compare the two clusters.'); }
+  }
+  live.t = 0; live.v = 0; live.y = P.h; live.s = 0; live.Eel = 0; live.KE = 0; live.G = P.m*g*P.h;
+}
+function placeLabels(){
+  var w = stage.clientWidth, h = stage.clientHeight;
+  for(var i=0;i<labels.length;i++){
+    var l = labels[i], vis = l.show();
+    if(vis){
+      l.obj.getWorldPosition(tmp2).project(camera);
+      vis = tmp2.z < 1 && Math.abs(tmp2.x) < 1.02 && Math.abs(tmp2.y) < 1.02;
+      if(vis) l.el.style.transform = 'translate(' + ((tmp2.x*0.5+0.5)*w).toFixed(1) + 'px,' + ((-tmp2.y*0.5+0.5)*h).toFixed(1) + 'px) ' + l.tr;
+    }
+    if(vis !== l.shown){ l.el.style.display = vis ? '' : 'none'; l.shown = vis; }
+  }
+}
+
+/* ---------- readouts ---------- */
+function fillReadouts(s){
+  $('r-v0').textContent = fx(s.v0,1) + ' m/s';
+  $('r-tf').textContent = fx(s.tF,2) + ' s';
+  $('r-peak').textContent = fx(s.peak,2) + ' m';
+  $('r-range').textContent = fx(s.R,1) + ' m';
+  var fb = s.k*s.x, wt = s.m*g, fn = fb - wt*Math.sin(s.th);
+  $('r-fband').textContent = fx(fb,0) + ' N';
+  $('r-weight').textContent = fx(wt,2) + ' N';
+  $('r-fnet').textContent = fx(fn,0) + ' N';
+  $('r-a0').textContent = fx(fn/s.m,0) + ' m/s²';
+  $('r-eel').textContent = fx(s.Eel,1) + ' J';
+  $('r-ke0').textContent = fx(0.5*s.m*s.v0*s.v0,1) + ' J';
+  $('r-dg').textContent = fx(s.m*g*s.x*Math.sin(s.th),2) + ' J';
+  $('r-p0').textContent = fx(s.m*s.v0,2) + ' kg·m/s';
+  $('r-ts').textContent = fx(s.tS*1000,0) + ' ms';
+  $('r-favg').textContent = s.tS>0 ? fx(s.m*s.v0/s.tS,0) + ' N' : '-';
+  $('r-vl').textContent = fx(s.vL,1) + ' m/s';
+  $('r-pl').textContent = fx(s.m*s.vL,2) + ' kg·m/s';
+}
+function fillLive(){
+  $('l-t').textContent = fx(live.t,2) + ' s';
+  $('l-v').textContent = fx(live.v,1) + ' m/s';
+  $('l-h').textContent = fx(live.y,2) + ' m';
+  $('l-s').textContent = Math.round(live.s*100) + ' cm';
+  var s = play.shot, den = Math.max(s ? s.Etot : 0, P.m*g*P.h, 1e-6);
+  $('e-el').style.width = (100*live.Eel/den).toFixed(2) + '%';
+  $('e-ke').style.width = (100*live.KE/den).toFixed(2) + '%';
+  $('e-g').style.width = (100*live.G/den).toFixed(2) + '%';
+  $('e-el-v').textContent = fx(live.Eel,1) + ' J'; $('e-ke-v').textContent = fx(live.KE,1) + ' J'; $('e-g-v').textContent = fx(live.G,1) + ' J';
+}
+function niceStep(max, n){ var raw = max/n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw/p; return (f<1.5?1:f<3.5?2:f<7.5?5:10)*p; }
+function fitCanvas(c){
+  var dpr = Math.min(window.devicePixelRatio||1, 2), w = c.clientWidth, h = c.clientHeight;
+  if(c.width !== Math.round(w*dpr) || c.height !== Math.round(h*dpr)){ c.width = Math.round(w*dpr); c.height = Math.round(h*dpr); }
+  var ctx = c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h); return {ctx:ctx, w:w, h:h};
+}
+// side view: height against distance
+function drawPlot(){
+  var f = fitCanvas($('plot')), ctx = f.ctx, s = play.shot || ideal;
+  var l = 36, r = 12, t = 16, b = 26, pw = f.w-l-r, phh = f.h-t-b;
+  var xmax = Math.max(Math.abs(s.R),1)*1.1, ymax = Math.max(s.peak,1)*1.2;
+  var xs = niceStep(xmax,5), ys = niceStep(ymax,4);
+  xmax = Math.ceil(xmax/xs)*xs; ymax = Math.ceil(ymax/ys)*ys;
+  var X = function(x){ return l + pw*x/xmax; }, Y = function(y){ return t + phh*(1 - y/ymax); };
+  ctx.font = '11px "IBM Plex Mono", monospace'; ctx.lineWidth = 1;
+  ctx.strokeStyle = '#dfe6ea'; ctx.fillStyle = '#55666f';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for(var x=0; x<=xmax+1e-9; x+=xs){ ctx.beginPath(); ctx.moveTo(X(x),t); ctx.lineTo(X(x),t+phh); ctx.stroke(); ctx.fillText(fx(x, xs<1?1:0), X(x), t+phh+5); }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for(var y=0; y<=ymax+1e-9; y+=ys){ ctx.beginPath(); ctx.moveTo(l,Y(y)); ctx.lineTo(l+pw,Y(y)); ctx.stroke(); ctx.fillText(fx(y, ys<1?1:0), l-6, Y(y)); }
+  ctx.strokeStyle = '#14242e'; ctx.beginPath(); ctx.moveTo(l,t); ctx.lineTo(l,t+phh); ctx.lineTo(l+pw,t+phh); ctx.stroke();
+  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillText('distance (m)', l+pw, t+phh-4);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('height (m)', l+6, 2);
+  var col = mode==='single' && active==='hand' ? '#c2410c' : '#0f6e8c';
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+  var back = s.R < 0;                                   // a wobbly 90° shot can go backward
+  for(var i=0;i<=60;i++){ var tt = s.tF*i/60, px = Math.abs(s.vx*tt), py = Math.max(0, s.h + s.vy*tt - 0.5*g*tt*tt); if(i) ctx.lineTo(X(px),Y(py)); else ctx.moveTo(X(px),Y(py)); }
+  ctx.stroke();
+  ctx.fillStyle = '#14242e'; ctx.textBaseline = 'bottom';
+  if(s.vy > 0.3){ var xp = Math.abs(s.vx)*s.vy/g; ctx.beginPath(); ctx.arc(X(xp),Y(s.peak),3,0,7); ctx.fill(); ctx.textAlign = xp/xmax>0.75?'right':'left'; ctx.fillText('peak ' + fx(s.peak,2) + ' m', X(xp)+(xp/xmax>0.75?-6:6), Y(s.peak)-3); }
+  ctx.beginPath(); ctx.arc(X(Math.abs(s.R)),Y(0),3,0,7); ctx.fill();
+  ctx.textAlign = 'right'; ctx.fillText('lands ' + fx(Math.abs(s.R),1) + ' m' + (back?' behind':''), Math.max(X(Math.abs(s.R))-6, l+96), Y(0)-5);
+  if(play.shot && (play.phase==='flight' || play.phase==='impact')){
+    var tl = (play.phase==='flight'?play.u:1)*s.tF;
+    ctx.fillStyle = '#e4572e'; ctx.beginPath(); ctx.arc(X(Math.abs(s.vx*tl)), Y(Math.max(0, s.h + s.vy*tl - 0.5*g*tl*tl)), 5, 0, 7); ctx.fill();
+  }
+}
+// top view of the landing spots around the target
+function drawScatter(){
+  var c = $('scatter'); if(!c.clientWidth) return;
+  var f = fitCanvas(c), ctx = f.ctx, cx = f.w/2, cy = f.h/2;
+  var span = 3;
+  ['hand','pin'].forEach(function(k){ cmp.done[k].forEach(function(s){ span = Math.max(span, Math.abs(s.lx-ideal.R)*1.12, Math.abs(s.lz)*1.12*f.w/f.h); }); });
+  var sc = (f.w/2 - 6)/span, st = niceStep(span*2, 5);
+  ctx.font = '11px "IBM Plex Mono", monospace'; ctx.lineWidth = 1; ctx.strokeStyle = '#dfe6ea'; ctx.fillStyle = '#55666f';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  for(var d=-Math.floor(span/st)*st; d<=span; d+=st){
+    ctx.beginPath(); ctx.moveTo(cx+d*sc,0); ctx.lineTo(cx+d*sc,f.h); ctx.stroke();
+    if(Math.abs(d)>1e-9) ctx.fillText((d>0?'+':'') + fx(d, st<1?1:0), cx+d*sc, f.h-2);
+  }
+  for(var e=-Math.floor(span/st)*st; e<=span; e+=st){ ctx.beginPath(); ctx.moveTo(0,cy+e*sc); ctx.lineTo(f.w,cy+e*sc); ctx.stroke(); }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('short (m)', 4, 4);
+  ctx.textAlign = 'right'; ctx.fillText('long (m)', f.w-4, 4);
+  ctx.strokeStyle = '#14242e'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx,cy,sc,0,7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-5,cy); ctx.lineTo(cx+5,cy); ctx.moveTo(cx,cy-5); ctx.lineTo(cx,cy+5); ctx.stroke();
+  [['hand','#c2410c'],['pin','#0f6e8c']].forEach(function(p){
+    ctx.fillStyle = p[1]; ctx.globalAlpha = 0.8;
+    cmp.done[p[0]].forEach(function(s){ ctx.beginPath(); ctx.arc(cx+(s.lx-ideal.R)*sc, cy+s.lz*sc, 4, 0, 7); ctx.fill(); });
+    ctx.globalAlpha = 1;
+  });
+  if(!cmp.done.hand.length){ ctx.fillStyle = '#55666f'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('Target is ' + fx(ideal.R,1) + ' m away. Fire to compare.', cx, cy+sc+8); }
+}
+function updateStats(){
+  var n = cmp.done.hand.length; $('n-shots').textContent = n;
+  [['hand','h'],['pin','p']].forEach(function(p){
+    var a = cmp.done[p[0]], sfx = p[1];
+    if(!a.length){ ['miss','hit','avg','sd'].forEach(function(k){ $('t-'+k+'-'+sfx).textContent = '-'; }); return; }
+    var miss = 0, hit = 0, sum = 0;
+    a.forEach(function(s){ var d = Math.hypot(s.lx-ideal.R, s.lz); miss += d; if(d<=1) hit++; sum += s.R; });
+    var mean = sum/a.length, v = 0; a.forEach(function(s){ v += (s.R-mean)*(s.R-mean); });
+    $('t-miss-'+sfx).textContent = fx(miss/a.length,2) + ' m';
+    $('t-hit-'+sfx).textContent = hit + ' of ' + a.length;
+    $('t-avg-'+sfx).textContent = fx(mean,1) + ' m';
+    $('t-sd-'+sfx).textContent = a.length>1 ? fx(Math.sqrt(v/(a.length-1)),2) + ' m' : '-';
+  });
+  drawScatter();
+}
+function clearCompare(){
+  cmp.running = false; cmp.plan = null; cmp.i = 0; cmp.u = 0; cmp.done.hand = []; cmp.done.pin = [];
+  clearSplats(launchers.hand); clearSplats(launchers.pin); $('fire').textContent = 'Fire 20 shots each'; updateStats();
+}
+function fire(){
+  if(cmp.running) return;
+  cmp.plan = {hand:[], pin:[]};
+  for(var i=0;i<cmp.n;i++){ cmp.plan.hand.push(computeShot(P, sampleErr('hand'))); cmp.plan.pin.push(computeShot(P, sampleErr('pin'))); }
+  cmp.i = 0; cmp.u = 0; cmp.running = true; viewField(); setStatus('Firing ' + cmp.n + ' shots from each launcher.');
+}
+
+/* ---------- controls ---------- */
+function outputs(){
+  $('o-x').textContent = Math.round(P.x*100) + ' cm'; $('o-m').textContent = fx(P.m,2) + ' kg';
+  $('o-k').textContent = P.k + ' N/m'; $('o-h').textContent = fx(P.h,2) + ' m';
+  $('o-wang').textContent = '±' + fx(W.ang,1) + '°'; $('o-waim').textContent = '±' + fx(W.aim,1) + '°'; $('o-wpull').textContent = '±' + fx(W.pull,1) + ' cm';
+}
+function changed(){ outputs(); resetPlay(); clearCompare(); updatePrediction(); shotNote(null); setStatus(mode==='single' ? 'Ready.' : 'Left lane: handheld. Right lane: pinned.'); }
+[['s-x','x'],['s-m','m'],['s-k','k'],['s-h','h']].forEach(function(p){
+  $(p[0]).addEventListener('input', function(e){ P[p[1]] = parseFloat(e.target.value); if(p[1]==='h') buildStand(launchers.pin); changed(); });
+});
+[['w-ang','ang'],['w-aim','aim'],['w-pull','pull']].forEach(function(p){
+  $(p[0]).addEventListener('input', function(e){ W[p[1]] = parseFloat(e.target.value); outputs(); clearCompare(); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('#angles button'), function(b){
+  b.addEventListener('click', function(){
+    var a = parseFloat(b.getAttribute('data-a')); if(a===P.theta) return;
+    Array.prototype.forEach.call(document.querySelectorAll('#angles button'), function(o){ o.setAttribute('aria-pressed', o===b); });
+    P.theta = a;
+    ['hand','pin'].forEach(function(k){ var L = launchers[k]; L.tween = {t:0, from:L.thetaIdle, to:a*DEG}; });
+    changed(); viewLauncher();
+    if(mode==='single') setStatus(active==='pin' ? 'Pin out, rail tilts to ' + a + '°, pin back in.' : 'The holders tilt to about ' + a + '° by eye.');
+  });
+});
+$('launch').addEventListener('click', launch);
+$('speed').addEventListener('click', function(){ play.slow = !play.slow; $('speed').textContent = play.slow ? 'Flight speed: 4× slower' : 'Flight speed: real time'; if(play.shot && play.phase==='flight') setStatus(play.slow ? 'Flight: shown 4× slower.' : 'Flight: real time.'); });
+Array.prototype.forEach.call(document.querySelectorAll('#phases .chip'), function(c){ c.addEventListener('click', function(){ jump(c.getAttribute('data-ph')); }); });
+$('tab-single').addEventListener('click', function(){ if(mode!=='single') setMode('single'); });
+$('tab-compare').addEventListener('click', function(){ if(mode!=='compare') setMode('compare'); });
+$('k-pin').addEventListener('click', function(){ if(active!=='pin') setKind('pin'); });
+$('k-hand').addEventListener('click', function(){ if(active!=='hand') setKind('hand'); });
+$('fire').addEventListener('click', fire);
+$('clear').addEventListener('click', clearCompare);
+$('v-launcher').addEventListener('click', viewLauncher);
+$('v-field').addEventListener('click', viewField);
+$('v-labels').addEventListener('click', function(){ labelsOn = !labelsOn; $('v-labels').setAttribute('aria-pressed', labelsOn); $('v-labels').classList.toggle('on', labelsOn); });
+
+/* ---------- main loop ---------- */
+function resize(){
+  var w = stage.clientWidth, h = stage.clientHeight; if(!w || !h) return;
+  if(renderer){ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2)); renderer.setSize(w, h, false); }
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+if(window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
+window.addEventListener('resize', drawScatter);
+var last = performance.now();
+function frame(now){
+  var dt = Math.min(0.05, (now-last)/1000); last = now; T += dt;
+  camApply(dt);
+  if(mode==='single') stepSingle(dt); else stepCompare(dt);
+  if(renderer) renderer.render(scene, camera); else scene.updateMatrixWorld();
+  placeLabels(); fillLive(); drawPlot();
+  requestAnimationFrame(frame);
+}
+outputs(); resize(); setMode('single');
+if(cam.goal){ for(var ck in cam.goal) cam[ck] = cam.goal[ck]; cam.goal = null; }
+window.__lab = {computeShot:computeShot, P:P, launch:launch, jump:jump, fire:fire, setMode:setMode, setKind:setKind, play:play, cmp:cmp};
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
