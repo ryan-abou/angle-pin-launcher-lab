@@ -415,6 +415,8 @@ function makeLauncher(kind){
 
   // balloon, its ground shadow, predicted path, flown trail, target ring, landing marks
   L.balloon = ball(scene, 1, mat.balloon, 0,0,0);
+  L.pool = [];                                            // extra balloons for the 20-shot test, so shots can overlap in the air
+  for(var pi=0; pi<20; pi++){ var pm = new THREE.Mesh(L.balloon.geometry, mat.balloon); pm.visible = false; scene.add(pm); L.pool.push(pm); }
   L.shadow = new THREE.Mesh(new THREE.CircleGeometry(1,20), new THREE.MeshBasicMaterial({color:0x14242e, transparent:true, opacity:0.22}));
   L.shadow.rotation.x = -Math.PI/2; scene.add(L.shadow);
   var NP = 80;
@@ -484,6 +486,7 @@ function pose(L, th, phi, pull, rB){
 function setOn(L, on){
   L.on = on;
   [L.root, L.balloon, L.shadow, L.path, L.trail, L.target, L.splats, L.splash].forEach(function(o){ o.visible = on; });
+  L.pool.forEach(function(o){ o.visible = false; });
 }
 function balloonR(){ return Math.cbrt(3*P.m/(4*Math.PI*1000)); }     // radius of a sphere of water with this mass
 function placeBalloon(L, pos, flying){
@@ -572,7 +575,7 @@ var mode = 'single', active = 'pin';
 var ideal = computeShot(P, null);          // the perfect shot for the current settings
 var PH = ['load','release','flight','impact'];
 var play = {shot:null, phase:'load', u:0, paused:true, done:false, slow:false};
-var cmp = {plan:null, i:0, u:0, running:false, n:20, done:{hand:[], pin:[]}};
+var cmp = {plan:null, t:0, span:2.5, running:false, n:20, done:{hand:[], pin:[]}};
 makeLauncher('hand'); makeLauncher('pin'); buildStand(launchers.pin);
 
 function updatePrediction(){
@@ -727,24 +730,36 @@ function stepSingle(dt){
   } else { arrowW.g.visible = false; arrowBand.g.visible = false; }
 }
 function stepCompare(dt){
-  var rB = balloonR(), run = cmp.running;
-  if(run) cmp.u += dt/0.42;
+  // 20 launches per launcher at real speed, started over about 2.5 s so several are in the air at once
+  var rB = balloonR(), run = cmp.running, lead = 0.3, gap = cmp.span/(cmp.n-1), landed = false, allDown = true;
+  if(run) cmp.t += dt;
   ['hand','pin'].forEach(function(kind){
     var L = launchers[kind]; stepTween(L, dt);
-    var j = jitter(L), th = L.thetaIdle + j[0], phi = j[1], pull = 0, flying = false;
+    var j = jitter(L), th = L.thetaIdle + j[0], phi = j[1], pull = 0, loaded = true;
     if(run){
-      var s = cmp.plan[kind][cmp.i]; th = s.th; phi = s.phi;
-      if(cmp.u < 0.18) pull = s.x; else { flying = true; flightPos(L, s, Math.min(1,(cmp.u-0.18)/0.82)*s.tF, bpos); }
+      var plan = cmp.plan[kind], q = (cmp.t-lead)/gap;
+      if(q < 0){ th = plan[0].th; phi = plan[0].phi; pull = plan[0].x*ease(cmp.t/lead); }
+      else {
+        var cur = Math.min(cmp.n-1, Math.floor(q)), fr = q-cur;
+        if(cur < cmp.n-1){ var nx = plan[cur+1]; th = lerp(plan[cur].th, nx.th, fr); phi = lerp(plan[cur].phi, nx.phi, fr); pull = nx.x*fr; }
+        else { th = plan[cur].th; phi = plan[cur].phi; loaded = false; }
+      }
+      for(var i=0;i<cmp.n;i++){
+        var s = plan[i], m = L.pool[i], tau = cmp.t - lead - i*gap;
+        if(tau < 0){ m.visible = false; allDown = false; }
+        else if(tau < s.tF){
+          flightPos(L, s, tau, tmp); m.visible = true; m.position.copy(tmp);
+          m.scale.setScalar(Math.max(rB, 0.011*camera.position.distanceTo(tmp))); allDown = false;
+        } else if(!s.landed){ s.landed = true; m.visible = false; addSplat(L, s, 0.2); cmp.done[kind].push(s); landed = true; }
+      }
     }
     pose(L, th, phi, pull, rB);
-    if(!flying){ bpos.set(-pull,0,0); L.sling.localToWorld(bpos); }
-    placeBalloon(L, bpos, flying);
+    bpos.set(-pull,0,0); L.sling.localToWorld(bpos);
+    L.balloon.visible = L.on && loaded;
+    placeBalloon(L, bpos, false);
   });
-  if(run && cmp.u >= 1){
-    ['hand','pin'].forEach(function(kind){ var s = cmp.plan[kind][cmp.i]; addSplat(launchers[kind], s, 0.2); cmp.done[kind].push(s); });
-    cmp.i++; cmp.u = 0; updateStats();
-    if(cmp.i >= cmp.n){ cmp.running = false; $('fire').textContent = 'Fire 20 more'; setStatus('Done. Compare the two clusters.'); }
-  }
+  if(landed) updateStats();
+  if(run && allDown){ cmp.running = false; $('fire').textContent = 'Fire 20 more'; setStatus('Done. Compare the two clusters.'); }
   live.t = 0; live.v = 0; live.y = P.h; live.s = 0; live.Eel = 0; live.KE = 0; live.G = P.m*g*P.h;
 }
 function placeLabels(){
@@ -869,14 +884,15 @@ function updateStats(){
   drawScatter();
 }
 function clearCompare(){
-  cmp.running = false; cmp.plan = null; cmp.i = 0; cmp.u = 0; cmp.done.hand = []; cmp.done.pin = [];
+  cmp.running = false; cmp.plan = null; cmp.t = 0; cmp.done.hand = []; cmp.done.pin = [];
+  launchers.hand.pool.concat(launchers.pin.pool).forEach(function(o){ o.visible = false; });
   clearSplats(launchers.hand); clearSplats(launchers.pin); $('fire').textContent = 'Fire 20 shots each'; updateStats();
 }
 function fire(){
   if(cmp.running) return;
   cmp.plan = {hand:[], pin:[]};
   for(var i=0;i<cmp.n;i++){ cmp.plan.hand.push(computeShot(P, sampleErr('hand'))); cmp.plan.pin.push(computeShot(P, sampleErr('pin'))); }
-  cmp.i = 0; cmp.u = 0; cmp.running = true; viewField(); setStatus('Firing ' + cmp.n + ' shots from each launcher.');
+  cmp.t = 0; cmp.running = true; viewField(); setStatus('Firing ' + cmp.n + ' shots from each launcher at real speed.');
 }
 
 /* ---------- controls ---------- */
