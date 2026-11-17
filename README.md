@@ -16,7 +16,7 @@ Live site: https://ryan-abou.github.io/angle-pin-launcher-lab/
 ## Physics
 
 - Energy: `½·k·x² = ½·m·v₀² + m·g·x·sinθ`
-- Flight: `x = v₀·cosθ·t`, `y = h + v₀·sinθ·t − ½·g·t²`
+- Flight: `x = v₀·cosθ·t`, `y = h + v₀·sinθ·t − ½·g·t²`, with g = 10 m/s²
 - Momentum: `p = m·v`, impulse `J = F_avg·Δt = Δp`
 
 ## Assumptions

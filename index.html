@@ -36,6 +36,7 @@ main{max-width:1240px;margin:0 auto;padding:0 16px 40px;display:grid;gap:14px;gr
 .lab.mark{background:var(--ink);color:#fff;border:0}
 .views{position:absolute;left:8px;top:8px;display:flex;gap:6px;flex-wrap:wrap}
 .phases{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#status:empty{display:none}
 #status{font:500 12px/1.2 var(--body);background:rgba(255,255,255,.9);border-radius:3px;padding:5px 7px;margin-left:auto}
 button{font:500 13px/1 var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--ink);border-radius:4px;padding:8px 10px;cursor:pointer}
 button:focus-visible,input:focus-visible{outline:3px solid var(--pin);outline-offset:2px}
@@ -57,6 +58,7 @@ h3{font:600 13px/1.2 var(--body);margin:14px 0 6px}
 input[type=range]{width:100%;accent-color:var(--ink);margin:0;height:28px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
 .note{color:var(--muted);font-size:13px;margin:8px 0 0}
+.note:empty{display:none}
 .warn{color:#a3260d;font-weight:500}
 .kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px dashed var(--line);font-size:14px}
 .kv b{font:500 14px/1.3 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -75,7 +77,10 @@ th:first-child,td:first-child{text-align:left;font-weight:400}
 td{font-family:var(--mono)}
 td:first-child{font-family:var(--body)}
 th.h{color:var(--hand)} th.p{color:var(--pin)}
-ol.map{margin:0;padding-left:20px;display:grid;gap:6px}
+.formulas{display:grid;gap:4px 28px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:620px){.formulas{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.formulas h3:first-child{margin-top:0}
+.formulas p{margin:0 0 4px;font:400 14px/1.5 var(--mono);overflow-x:auto;white-space:nowrap}
 ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
 .cards{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
 @media (min-width:620px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -91,7 +96,6 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
 <body>
 <header class="top">
   <h1>Angle-Pin Launcher Lab</h1>
-  <p>A water balloon slingshot in two versions: the original held by hand, and the modified one with a base, an angle pin and a meter stick. Air resistance is ignored.</p>
 </header>
 
 <main>
@@ -108,7 +112,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
       <button class="chip" type="button" data-ph="release">2 Release</button>
       <button class="chip" type="button" data-ph="flight">3 Flight</button>
       <button class="chip" type="button" data-ph="impact">4 Impact</button>
-      <span id="status">Ready. Drag to rotate, pinch or scroll to zoom.</span>
+      <span id="status"></span>
     </div>
   </section>
 
@@ -144,13 +148,12 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
           <button class="primary" type="button" id="launch">Launch</button>
           <button type="button" id="speed">Flight speed: real time</button>
         </div>
-        <p class="note" id="shotnote">Pin locked at 45°. Meter stick reads 50 cm.</p>
+        <p class="note" id="shotnote"></p>
       </div>
     </section>
 
     <section class="card" id="panel-compare" hidden>
       <h2>Accuracy test</h2>
-      <p class="note" style="margin-top:0">Both launchers aim at the same target with the same angle, pullback, mass and bands. Only the handheld one wobbles.</p>
       <div class="row"><label for="w-ang">Handheld angle wobble <output id="o-wang"></output></label><input type="range" id="w-ang" min="0" max="10" step="0.5" value="5"></div>
       <div class="row"><label for="w-aim">Handheld left/right wobble <output id="o-waim"></output></label><input type="range" id="w-aim" min="0" max="10" step="0.5" value="4"></div>
       <div class="row"><label for="w-pull">Handheld pullback error <output id="o-wpull"></output></label><input type="range" id="w-pull" min="0" max="10" step="0.5" value="4"></div>
@@ -173,7 +176,6 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
           <tr><td>Distance spread (std dev)</td><td id="t-sd-h">-</td><td id="t-sd-p">-</td></tr>
         </tbody>
       </table>
-      <p class="note">The wobble sizes are estimates. Replace them with numbers from real trials. The pinned launcher is given 0.5° of slop and 0.5 cm of meter stick reading error.</p>
     </section>
   </div>
 
@@ -195,7 +197,6 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
         </div>
       </div>
       <canvas class="plot" id="plot" aria-label="Side view plot of the balloon path, height against distance"></canvas>
-      <p class="eq">x = v₀·cosθ·t &nbsp;&nbsp; y = h + v₀·sinθ·t − ½·g·t² &nbsp;&nbsp; g = 9.8 m/s²</p>
     </div>
 
     <div class="cards">
@@ -205,8 +206,6 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
         <div class="kv"><span>Balloon weight</span><b id="r-weight"></b></div>
         <div class="kv"><span>Net force along the rail at release</span><b id="r-fnet"></b></div>
         <div class="kv"><span>Starting acceleration</span><b id="r-a0"></b></div>
-        <p class="eq">F_band = k·s &nbsp;&nbsp; W = m·g<br>F_net = k·s − m·g·sinθ = m·a</p>
-        <p class="note">Arrows in the 3D view show the band force and the weight on the balloon. Arrow length grows with the square root of the force so the weight stays visible.</p>
       </div>
       <div class="card">
         <h2>Energy</h2>
@@ -219,8 +218,6 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
           <span><i class="sw" style="background:var(--ke)"></i>Kinetic <b id="e-ke-v"></b></span>
           <span><i class="sw" style="background:var(--gpe)"></i>Gravitational <b id="e-g-v"></b></span>
         </div>
-        <p class="eq">½·k·x² = ½·m·v₀² + m·g·x·sinθ</p>
-        <p class="note">With no air resistance the total stays the same from release to landing.</p>
       </div>
       <div class="card">
         <h2>Momentum</h2>
@@ -229,8 +226,6 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
         <div class="kv"><span>Average net force during the push</span><b id="r-favg"></b></div>
         <div class="kv"><span>Speed at landing</span><b id="r-vl"></b></div>
         <div class="kv"><span>Momentum at landing</span><b id="r-pl"></b></div>
-        <p class="eq">p = m·v &nbsp;&nbsp; impulse J = F_avg·Δt = Δp</p>
-        <p class="note">The balloon starts at rest, so the impulse from the launch equals its momentum at release. The ground must give the same size of impulse as the landing momentum to stop it.</p>
       </div>
       <div class="card">
         <h2>Assumptions</h2>
@@ -238,7 +233,6 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
           <li>No air resistance.</li>
           <li>The bands follow Hooke's law, F = k·s.</li>
           <li>The balloon leaves the pouch when the bands return to their rest length, at the release height.</li>
-          <li>Mass, stiffness and wobble are estimates until measured on the real launcher.</li>
         </ul>
       </div>
     </div>
@@ -246,15 +240,42 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
 
   <section class="notes">
     <div class="card">
-      <h2>What each part of this page shows</h2>
-      <ol class="map">
-        <li><strong>Projectile physics engine.</strong> The Kinematics card and the path plot update with every slider.</li>
-        <li><strong>Forces and energy tracker.</strong> Force arrows ride on the balloon in the 3D view. The energy bar follows elastic, kinetic and gravitational energy through the launch.</li>
-        <li><strong>Interactive 3D launcher.</strong> Rotate and zoom the model. Parts are labeled to match the blueprint.</li>
-        <li><strong>Animated modification.</strong> Pick an angle and the pin pulls out, the rail tilts and the pin locks. Step through Load, Release, Flight and Impact.</li>
-        <li><strong>Original against modified.</strong> The accuracy test fires 20 shots from each launcher at the same settings and compares where they land.</li>
-        <li><strong>Momentum and variables.</strong> The Momentum card, with sliders for mass, pullback, band stiffness and release height.</li>
-      </ol>
+      <h2>Formulas</h2>
+      <div class="formulas">
+        <div>
+          <h3>Constants</h3>
+          <p>g = 10 m/s²</p>
+          <h3>Launch (energy)</h3>
+          <p>½·k·x² = ½·m·v₀² + m·g·x·sinθ</p>
+          <p>v₀ = √(k·x²/m − 2·g·x·sinθ)</p>
+          <h3>Flight (kinematics)</h3>
+          <p>vₓ = v₀·cosθ &nbsp; v_y = v₀·sinθ</p>
+          <p>x = vₓ·t</p>
+          <p>y = h + v_y·t − ½·g·t²</p>
+          <p>t_air = (v_y + √(v_y² + 2·g·h)) / g</p>
+          <p>R = vₓ·t_air</p>
+          <p>Peak = h + v_y² / (2·g)</p>
+          <p>v_land = √(vₓ² + (v_y − g·t_air)²)</p>
+        </div>
+        <div>
+          <h3>Forces</h3>
+          <p>F_band = k·s</p>
+          <p>W = m·g</p>
+          <p>F_net = k·s − m·g·sinθ = m·a</p>
+          <h3>Energy</h3>
+          <p>Elastic = ½·k·s²</p>
+          <p>Kinetic = ½·m·v²</p>
+          <p>Gravitational = m·g·y</p>
+          <h3>Momentum</h3>
+          <p>p = m·v</p>
+          <p>J = F_avg·Δt = Δp</p>
+          <p>Δt = arccos(−s_e / (x − s_e)) / ω</p>
+          <p>ω = √(k/m) &nbsp; s_e = m·g·sinθ / k</p>
+          <h3>Accuracy test</h3>
+          <p>Miss = √((x − R)² + z²)</p>
+          <p>Spread σ = √(Σ(R − R̄)² / (n − 1))</p>
+        </div>
+      </div>
     </div>
   </section>
 </main>
@@ -265,7 +286,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
 'use strict';
 
 /* ---------- settings ---------- */
-var g = 9.8;                       // gravity, m/s^2
+var g = 10;                        // gravity, m/s^2
 var DEG = Math.PI/180;
 var FORK = 0.30;                   // fork posts sit 0.30 m ahead of the release point
 var P = {theta:45, x:0.50, m:0.20, k:120, h:0.75};   // angle (deg), pullback (m), mass (kg), stiffness (N/m), release height (m)
@@ -601,8 +622,8 @@ function setMode(m){
   launchers.hand.lane = m==='single' ? 0 : -2.5; launchers.pin.lane = m==='single' ? 0 : 2.5;
   setOn(launchers.hand, m==='compare' || active==='hand'); setOn(launchers.pin, m==='compare' || active==='pin');
   updatePrediction();
-  if(m==='single'){ viewLauncher(); setStatus('Ready. Drag to rotate, pinch or scroll to zoom.'); }
-  else { viewField(); setStatus('Left lane: handheld. Right lane: pinned.'); }
+  if(m==='single') viewLauncher(); else viewField();
+  setStatus('');
 }
 function setKind(k){
   active = k; $('k-pin').setAttribute('aria-pressed', k==='pin'); $('k-hand').setAttribute('aria-pressed', k==='hand');
@@ -618,7 +639,7 @@ function resetPlay(){
 function shotNote(s){
   var el = $('shotnote'); el.className = 'note';
   if(!ideal.launches){ el.className = 'note warn'; el.textContent = 'The bands are too weak to push the balloon up the rail at this angle. Raise the stiffness or the pullback.'; return; }
-  if(!s || active==='pin'){ el.textContent = active==='pin' ? 'Pin locked at ' + P.theta + '°. Meter stick reads ' + Math.round(P.x*100) + ' cm.' : 'Three people hold it by hand. Every launch comes out a little different.'; return; }
+  if(!s || active==='pin'){ el.textContent = ''; return; }
   el.textContent = 'This throw left at ' + fx(s.th/DEG,1) + '°, ' + fx(Math.abs(s.phi/DEG),1) + '° off line, with ' + Math.round(s.x*100) + ' cm of pullback. The aim was ' + P.theta + '° and ' + Math.round(P.x*100) + ' cm.';
 }
 function uiPlay(){
@@ -833,7 +854,7 @@ function drawPlot(){
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
   for(var y=0; y<=ymax+1e-9; y+=ys){ ctx.beginPath(); ctx.moveTo(l,Y(y)); ctx.lineTo(l+pw,Y(y)); ctx.stroke(); ctx.fillText(fx(y, ys<1?1:0), l-6, Y(y)); }
   ctx.strokeStyle = '#14242e'; ctx.beginPath(); ctx.moveTo(l,t); ctx.lineTo(l,t+phh); ctx.lineTo(l+pw,t+phh); ctx.stroke();
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillText('distance (m)', l+pw, t+phh-4);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText('distance (m)', l+pw, 2);
   ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('height (m)', l+6, 2);
   var col = mode==='single' && active==='hand' ? '#c2410c' : '#0f6e8c';
   ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
@@ -907,7 +928,7 @@ function outputs(){
   $('o-k').textContent = P.k + ' N/m'; $('o-h').textContent = fx(P.h,2) + ' m';
   $('o-wang').textContent = '±' + fx(W.ang,1) + '°'; $('o-waim').textContent = '±' + fx(W.aim,1) + '°'; $('o-wpull').textContent = '±' + fx(W.pull,1) + ' cm';
 }
-function changed(){ outputs(); resetPlay(); clearCompare(); updatePrediction(); shotNote(null); setStatus(mode==='single' ? 'Ready.' : 'Left lane: handheld. Right lane: pinned.'); }
+function changed(){ outputs(); resetPlay(); clearCompare(); updatePrediction(); shotNote(null); setStatus(''); }
 [['s-x','x'],['s-m','m'],['s-k','k'],['s-h','h']].forEach(function(p){
   $(p[0]).addEventListener('input', function(e){ P[p[1]] = parseFloat(e.target.value); if(p[1]==='h') buildStand(launchers.pin); changed(); });
 });
